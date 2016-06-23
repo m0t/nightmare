@@ -264,7 +264,8 @@ class CGDBInterface(object):
     
     logfile = mkstemp()[1]
     try:
-      cmd = '/bin/bash -c "/usr/bin/gdb -q --batch --command=%s --args %s" 2>/dev/null > %s'
+      #cmd = '/bin/bash -c "/usr/bin/gdb -q --batch --command=%s --args %s" 2>/dev/null > %s'
+      cmd = '/bin/bash -c "/usr/bin/gdb -q --batch --command=%s --args %s" > %s'
       cmd %= (self.gdb_commands, self.program, logfile)
       print cmd
       print "Running %s" % cmd
