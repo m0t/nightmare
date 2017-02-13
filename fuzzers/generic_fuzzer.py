@@ -218,7 +218,7 @@ class CGenericFuzzer:
 
   def fuzz(self):
     log("Launching fuzzer, listening in tube %s" % self.tube_name)
-    while 1:
+    while True:
       value = self.q.stats_tube(self.tube_name)["current-jobs-ready"]
       debug("Total of %d job(s) in queue" % value)
       job = self.q.reserve()
@@ -246,8 +246,8 @@ class CGenericFuzzer:
         debug("Done")
       job.delete()
       
-      if self.iface == gdb_iface:
-        break
+      #if self.iface == gdb_iface:
+      #  break
 
 #-----------------------------------------------------------------------
 def do_fuzz(cfg, section):

@@ -309,6 +309,8 @@ class CGDBInterface(object):
         return crash_data_dict
 
       return
+    except KeyboardInterrupt:
+      exit(-1)
     finally:
       os.remove(logfile)
 
