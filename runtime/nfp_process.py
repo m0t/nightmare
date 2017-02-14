@@ -107,6 +107,10 @@ class TimeoutCommand(object):
     self.process.terminate()
     self.process.terminate()
     self.process.kill()
+    while psutil.pid_exists(self.pid):
+      log("Process %d stuck, trying to kill" % self.pid)
+      self.process.kill()
+      time.sleep(0.1)
     self.process.wait()
 
   def run(self, timeout=60, get_output=False):
@@ -124,8 +128,8 @@ class TimeoutCommand(object):
                                       stderr=subprocess.PIPE, shell=shell)
         self.pid = self.process.pid
         out, err = self.process.communicate()
-        self.stdout = out[:8192]
-        self.stderr = err[:8192]
+        self.stdout = out
+        self.stderr = err
       else:
         self.process = subprocess.Popen(line, shell=shell)
         self.pid = self.process.pid

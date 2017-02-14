@@ -169,7 +169,7 @@ class CGDBInterface(object):
         continue
 
       # Skip until the following message is found
-      if line == "@@@START-OF-CRASH":
+      if line.find("@@@START-OF-CRASH"):
         found_crash_start = True
         continue
 
@@ -234,7 +234,6 @@ class CGDBInterface(object):
               print line
             stack.append(line)
 
-          print
           self.parse_stack(stack)
           continue
         elif line.startswith("@@@START-OF-DISASSEMBLY-AT-PC"):
@@ -262,19 +261,23 @@ class CGDBInterface(object):
 
     os.putenv("LANG", "C")
     
-    logfile = mkstemp()[1]
+    #logfile = mkstemp()[1]
     try:
       #cmd = '/bin/bash -c "/usr/bin/gdb -q --batch --command=%s --args %s" 2>/dev/null > %s'
-      cmd = '/bin/bash -c "/usr/bin/gdb -q --batch --command=%s --args %s" > %s'
-      cmd %= (self.gdb_commands, self.program, logfile)
-      print cmd
-      print "Running %s" % cmd
+      #cmd = '/bin/bash -c "/usr/bin/gdb -q --batch --command=%s --args %s" > %s'
+      #cmd %= (self.gdb_commands, self.program, logfile)
+      cmd = "/usr/bin/gdb -q --batch --command=%s --args %s"
+      cmd %= (self.gdb_commands, self.program)
+      #print cmd
+      print("Running %s" % cmd)
 
       cmd_obj = TimeoutCommand(cmd)
-      cmd_obj.shell = True
-      cmd_obj.run(self.timeout)
+      #cmd_obj.shell = True
+      cmd_obj.run(self.timeout, get_output=True)
       
-      buf = open(logfile, "rb").readlines()
+      #buf = open(logfile, "rb").readlines()
+      buf = cmd_obj.stdout
+      print(buf)
       self.parse_dump(buf)
 
       if self.signal:
@@ -302,17 +305,16 @@ class CGDBInterface(object):
         crash_data_buf = crash_data.dump_json()
         crash_data_dict = crash_data.dump_dict()
 
-        print
-        print "Yep, we got a crash! \o/"
-        print
+        print("\nYep, we got a crash! \o/\n")
+
 
         return crash_data_dict
 
       return
     except KeyboardInterrupt:
       exit(-1)
-    finally:
-      os.remove(logfile)
+    #finally:
+    #  os.remove(logfile)
 
 #-----------------------------------------------------------------------
 def main(args, gdb_commands=None):

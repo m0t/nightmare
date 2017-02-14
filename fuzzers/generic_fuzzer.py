@@ -269,6 +269,8 @@ def main(cfg, section):
     try:
       fuzzer = CGenericFuzzer(cfg, section)
       fuzzer.fuzz()
+    except KeyboardInterrupt:
+      exit(-1)
     except:
       print "Error:", sys.exc_info()[1]
 
