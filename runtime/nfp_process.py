@@ -120,8 +120,9 @@ class TimeoutCommand(object):
         line = self.cmd
         shell = False
       else: # Unix based
-        line = "exec %s" % self.cmd
-        shell = True
+        #line = "exec %s" % self.cmd # removing this seems to avoid SIGTTOU being sent to the process
+        line = self.cmd.split(" ")
+        shell = False
       
       if get_output:
         self.process = subprocess.Popen(line, stdout=subprocess.PIPE,\
