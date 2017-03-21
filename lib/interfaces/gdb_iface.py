@@ -55,12 +55,19 @@ class CGDBInterface(object):
     self.exploitability = None
 
   def read_signal(self, line):
-    pos1 = len("Program received signal ")
-    pos2 = line.find(",")
-    if pos2 > -1:
-      signal = line[pos1:pos2]
-      print "Received signal %s\n" % signal
-      self.signal = signal
+    #Thread 1 "sweep.0" received signal SIGINT, Interrupt.
+    #Program received signal SIGINT,
+    match = re.match("Program received signal (\w+),", line)
+    if not match:
+      match = re.match("Thread 1 \"([^\"]+)\" received signal (\w+),", line)
+      if not match:
+        return
+      else:
+        self.signal = match.group(2)
+    else:
+      self.signal = match.group(1)
+    return
+
 
   def parse_pc(self, pc):
     addr = pc.split(" ")[1]
@@ -165,9 +172,10 @@ class CGDBInterface(object):
 
       # The 1st thing we need to find is the signal message
       if self.signal is None:
-        if line.startswith("Program received signal"):
+        if line.find("received signal") >= 0:
           #print("parsing signal")
           self.read_signal(line)
+        #
         continue
 
       # Skip until the following message is found
@@ -283,7 +291,7 @@ class CGDBInterface(object):
       #buf = open(logfile, "rb").readlines()
       buf = cmd_obj.stdout
       prog_out=cmd_obj.stderr
-      print(buf)
+      #print(buf)
       self.parse_dump(buf.split("\n"))
 
       if self.signal:
