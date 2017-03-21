@@ -264,6 +264,9 @@ class CSamplesGenerator:
   def insert_crash(self, project_id, temp_file, data):
     has_file = "has_file" in data
     crash_path = os.path.join(self.config["SAMPLES_PATH"], "crashes")
+    if not os.path.exists(crash_path):
+      log("Crash folder does not exist, creating now")
+      os.mkdir(crash_path)
     if not os.path.exists(temp_file) and not has_file:
       log("Test case file %s does not exists!!!!" % temp_file)
       return False

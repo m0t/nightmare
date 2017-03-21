@@ -44,6 +44,7 @@ class CGDBInterface(object):
     if os.getenv("NIGHTMARE_TIMEOUT"):
       timeout = float(os.getenv("NIGHTMARE_TIMEOUT"))
     self.timeout = timeout
+    self.signal_blacklist = ["SIGINT"]
 
     self.pc = None
     self.stack = []
@@ -267,6 +268,14 @@ class CGDBInterface(object):
           # Finished!
           break
 
+  def got_valid_signal(self):
+    if self.signal: 
+      if not self.signal in self.signal_blacklist:
+        return True
+      else:
+        log("Target received %s, ignoring" %self.signal )
+    return False       
+
   def run(self):
     global buf
 
@@ -294,7 +303,7 @@ class CGDBInterface(object):
       #print(buf)
       self.parse_dump(buf.split("\n"))
 
-      if self.signal:
+      if self.got_valid_signal():
         crash_data = CCrashData(self.pc, self.signal)
         i = 0
         for stack in self.stack:

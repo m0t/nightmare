@@ -126,7 +126,7 @@ class TimeoutCommand(object):
       
       if get_output:
         self.process = subprocess.Popen(line, stdout=subprocess.PIPE,\
-                                      stderr=subprocess.PIPE, shell=shell)
+                                      stderr=subprocess.PIPE, stdin=subprocess.PIPE, shell=shell)
         self.pid = self.process.pid
         out, err = self.process.communicate()
         self.stdout = out
