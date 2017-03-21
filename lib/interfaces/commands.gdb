@@ -4,7 +4,7 @@ handle SIGPIPE nostop noprint
 set follow-fork-mode child
 
 source ../lib/interfaces/ignore-errors.py
-run
+run >> ../fuzzers/gdb_target_output.log 
 echo @@@START-OF-CRASH\n
 
 echo @@@PROGRAM-COUNTER\n

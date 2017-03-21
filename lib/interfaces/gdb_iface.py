@@ -20,6 +20,7 @@ sys.path.append(os.path.join(dir_name, "../../runtime"))
 
 from crash_data import CCrashData
 from nfp_process import TimeoutCommand
+from nfp_log import log,debug
 
 #-----------------------------------------------------------------------
 # Default timeout
@@ -165,17 +166,19 @@ class CGDBInterface(object):
       # The 1st thing we need to find is the signal message
       if self.signal is None:
         if line.startswith("Program received signal"):
+          #print("parsing signal")
           self.read_signal(line)
         continue
 
       # Skip until the following message is found
-      if line.find("@@@START-OF-CRASH"):
+      if line.startswith("@@@START-OF-CRASH"):
         found_crash_start = True
         continue
 
       if found_crash_start:
-        if line == "@@@PROGRAM-COUNTER":
+        if line.startswith("@@@PROGRAM-COUNTER"):
           pc = lines[i+1]
+          print("pc: %s" % pc)
           self.parse_pc(pc)
           # Skip the line with the $PC information
           i += 1
@@ -266,6 +269,8 @@ class CGDBInterface(object):
       #cmd = '/bin/bash -c "/usr/bin/gdb -q --batch --command=%s --args %s" 2>/dev/null > %s'
       #cmd = '/bin/bash -c "/usr/bin/gdb -q --batch --command=%s --args %s" > %s'
       #cmd %= (self.gdb_commands, self.program, logfile)
+      import signal
+      signal.signal(signal.SIGTTOU, signal.SIG_IGN)
       cmd = "/usr/bin/gdb -q --batch --command=%s --args %s"
       cmd %= (self.gdb_commands, self.program)
       #print cmd
@@ -277,8 +282,9 @@ class CGDBInterface(object):
       
       #buf = open(logfile, "rb").readlines()
       buf = cmd_obj.stdout
+      prog_out=cmd_obj.stderr
       print(buf)
-      self.parse_dump(buf)
+      self.parse_dump(buf.split("\n"))
 
       if self.signal:
         crash_data = CCrashData(self.pc, self.signal)

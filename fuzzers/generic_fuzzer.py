@@ -204,7 +204,10 @@ class CGenericFuzzer:
         break
       except:
         log("Exception: %s" % sys.exc_info()[1])
-        continue
+        import traceback as t
+        t.print_tb(sys.exc_info()[2])
+        exit(-1)
+        #continue
 
     if self.post_command is not None:
       os.system(self.post_command)
