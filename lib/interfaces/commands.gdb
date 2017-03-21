@@ -1,11 +1,9 @@
 set disassembly-flavor intel
-set environment MALLOC_CHECK_=2
 handle SIGPIPE nostop noprint
 set follow-fork-mode child
 
 source ../lib/interfaces/ignore-errors.py
-run >> ../fuzzers/gdb_target_output.log 
-echo @@@START-OF-CRASH\n
+run >test-out.log
 
 echo @@@PROGRAM-COUNTER\n
 

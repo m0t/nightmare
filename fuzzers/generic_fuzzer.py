@@ -172,6 +172,9 @@ class CGenericFuzzer:
       self.iface.timeout = int(timeout)
       if self.debugging_interface == "asan":
         crash = self.iface.main(asan_symbolizer_path=self.asan_symbolizer_path, args=cmd)
+      elif self.debugging_interface == 'gdb':
+        gdb_conf = self.iface.read_configuration(self.cfg, self.section)
+        crash = self.iface.main(cmd, opts=gdb_conf)
       else:
         crash = self.iface.main(cmd)
     else:

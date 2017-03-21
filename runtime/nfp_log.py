@@ -14,7 +14,7 @@ from config import DEBUG
 
 #-----------------------------------------------------------------------
 def log(msg):
-  print "[%s %d:%d] %s" % (time.asctime(), os.getpid(), thread.get_ident(), msg)
+  print("[%s %d:%d] %s" % (time.asctime(), os.getpid(), thread.get_ident(), msg))
   sys.stdout.flush()
 
 #-----------------------------------------------------------------------

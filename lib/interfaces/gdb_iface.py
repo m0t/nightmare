@@ -10,8 +10,9 @@ import os
 import re
 import sys
 import time
+import ConfigParser
 
-from tempfile import mkstemp
+from tempfile import mkstemp,NamedTemporaryFile
 
 dir_name = os.path.dirname(os.path.realpath(__file__))
 sys.path.append(os.path.join(dir_name, ".."))
@@ -20,26 +21,26 @@ sys.path.append(os.path.join(dir_name, "../../runtime"))
 
 from crash_data import CCrashData
 from nfp_process import TimeoutCommand
-from nfp_log import log,debug
+from nfp_log import log
 
 #-----------------------------------------------------------------------
 # Default timeout
 timeout = 10
 
-buf = None
-
 #-----------------------------------------------------------------------
 class CGDBInterface(object):
-  def __init__(self, program, gdb_commands = None):
+  def __init__(self, program, opts = None):
     global dir_name
     global timeout
 
     self.buf = None
-    self.program = program
-    if gdb_commands is None:
-      self.gdb_commands = os.path.join(dir_name, "commands.gdb")
-    else:
-      self.gdb_commands = gdb_commands
+    self.cmdline = program
+    self.program = self.cmdline.split(" ")[0]
+    self.args = self.cmdline.split(" ")[1:]
+    self.conf = opts
+
+    self.gdb_commands = self.generate_cmd_script()
+    self.debug = self.conf["debug"]
 
     if os.getenv("NIGHTMARE_TIMEOUT"):
       timeout = float(os.getenv("NIGHTMARE_TIMEOUT"))
@@ -273,12 +274,51 @@ class CGDBInterface(object):
       if not self.signal in self.signal_blacklist:
         return True
       else:
-        log("Target received %s, ignoring" %self.signal )
+        log("Target received %s, ignoring" % self.signal )
     return False       
 
-  def run(self):
-    global buf
+  def generate_cmd_script(self):
+    gdb_commands = '''set disassembly-flavor intel
+handle SIGPIPE nostop noprint
+set follow-fork-mode child
+source ../lib/interfaces/ignore-errors.py
+run %s >> %s 
+info proc cmdline
+echo @@@START-OF-CRASH
+echo @@@PROGRAM-COUNTER
+ignore-errors x /i $pc
+echo
+echo @@@REGISTERS
+i r
+echo @@@START-OF-STACK-TRACE
+back 128
+echo @@@END-OF-STACK-TRACE
+echo @@@START-OF-DISASSEMBLY-AT-PC
+ignore-errors x /16i $pc-16
+echo 
+echo @@@END-OF-DISASSEMBLY-AT-PC
+echo @@@END-OF-CRASH
+quit
+    '''
+    gdb_commands %= (" ".join(self.args), self.conf["output_file"])
+    envs = ""
+    for var in self.conf["env"].keys():
+      envs += "set environment %s=%s\n" % (var, self.conf["env"][var])
+    gdb_commands = envs + gdb_commands
 
+    #save
+    self.cmd_file = NamedTemporaryFile(suffix=".gdb")
+    self.cmd_file.write(gdb_commands)
+    self.cmd_file.flush()
+    #print(gdb_commands)
+    return self.cmd_file.name
+
+  def debug(self, msg):
+    if self.debug:
+      print("DEBUG: [%s %d:%d] %s" % (time.asctime(), os.getpid(), thread.get_ident(), msg))
+      sys.stdout.flush()
+
+  def run(self):
     os.putenv("LANG", "C")
     
     #logfile = mkstemp()[1]
@@ -289,19 +329,18 @@ class CGDBInterface(object):
       import signal
       signal.signal(signal.SIGTTOU, signal.SIG_IGN)
       cmd = "/usr/bin/gdb -q --batch --command=%s --args %s"
+      #print(self.program)
+      #print(" ".join(self.args))
       cmd %= (self.gdb_commands, self.program)
       #print cmd
-      print("Running %s" % cmd)
 
       cmd_obj = TimeoutCommand(cmd)
-      #cmd_obj.shell = True
       cmd_obj.run(self.timeout, get_output=True)
       
       #buf = open(logfile, "rb").readlines()
-      buf = cmd_obj.stdout
-      prog_out=cmd_obj.stderr
-      #print(buf)
-      self.parse_dump(buf.split("\n"))
+      target_output = cmd_obj.stdout
+      #print(target_output)
+      self.parse_dump(target_output.split("\n"))
 
       if self.got_valid_signal():
         crash_data = CCrashData(self.pc, self.signal)
@@ -340,7 +379,43 @@ class CGDBInterface(object):
     #  os.remove(logfile)
 
 #-----------------------------------------------------------------------
-def main(args, gdb_commands=None):
+def read_configuration(cfgfile, cfgsection):
+    if not os.path.exists(cfgfile):
+      raise Exception("Invalid configuration file given")
+
+    parser = ConfigParser.SafeConfigParser()
+    parser.optionxform = str
+    parser.read(cfgfile)
+
+    gdb_conf = {}
+    gdb_conf["output_file"] = "/tmp/gdb-target-output.log"
+    gdb_conf["debug"] = False
+
+    if cfgsection not in parser.sections():
+      raise Exception("Section %s does not exist in the given configuration file" % self.section)
+    
+    try:
+      gdb_conf["output_file"] = parser.get(cfgsection, 'gdb-target-outfile')
+    except:
+      pass
+
+    try:
+      gdb_conf["debug"] = parser.get(cfgsection, 'debug')
+    except:
+      pass
+
+    gdb_conf["env"] = { "MALLOC_CHECK_":0 }
+    try:
+      target_env= parser.get(cfgsection, 'environment')
+
+      for item in parser.items(target_env):
+        gdb_conf["env"][item[0]] = item[1]
+    except:
+      pass
+
+    return gdb_conf
+
+def main(args, opts=None, gdb_commands=None):
   if args[0] in ["--attach", "-A"]:
     raise Exception("GDB interface doesn't support attaching")
   else:
@@ -348,7 +423,7 @@ def main(args, gdb_commands=None):
     if type(args) is list:
       prog = " ".join(args)
 
-  iface = CGDBInterface(prog, gdb_commands=gdb_commands)
+  iface = CGDBInterface(prog, opts=opts)
   return iface.run()
 
 #-----------------------------------------------------------------------
