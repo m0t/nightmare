@@ -12,7 +12,9 @@ import sys
 import time
 import ConfigParser
 
+from datetime import datetime
 from tempfile import mkstemp,NamedTemporaryFile
+from shutil import move
 
 dir_name = os.path.dirname(os.path.realpath(__file__))
 sys.path.append(os.path.join(dir_name, ".."))
@@ -39,7 +41,6 @@ class CGDBInterface(object):
     self.args = self.cmdline.split(" ")[1:]
     self.conf = opts
 
-    self.gdb_commands = self.generate_cmd_script()
     self.debug = self.conf["debug"]
 
     if os.getenv("NIGHTMARE_TIMEOUT"):
@@ -317,17 +318,41 @@ quit
     if self.debug:
       print("DEBUG: [%s %d:%d] %s" % (time.asctime(), os.getpid(), thread.get_ident(), msg))
       sys.stdout.flush()
+    return
+
+  def setup_target_output_log(self):
+    if self.conf["output_file"] == "/dev/null":
+      log("Target output will be discarded")
+    else:
+      log("Target output will be logged in %s" % self.conf["output_file"])
+      #a single file works better for me
+      #if os.path.exists(self.conf["output_file"]):
+        #old_file_dest = "%s.bak" % self.conf["output_file"]
+        #timestamp=datetime.fromtimestamp(time.time()).strftime('%d%m%y-%H%M%S')
+        #filename,ext = os.path.splitext(self.conf["output_file"])
+        #filename += "-%s" % timestamp
+        #old_file_dest = "".join((filename,ext))
+        #log("Target output file exists, moving existing file to %s" % old_file_dest)
+        #move(self.conf["output_file"], old_file_dest)
+    return
 
   def run(self):
     os.putenv("LANG", "C")
     
-    #logfile = mkstemp()[1]
     try:
+      #ignore sigttou
+      import signal
+      signal.signal(signal.SIGTTOU, signal.SIG_IGN)
+
+      #prepare target output log
+      self.setup_target_output_log()
+
+      #generate gdb commands script
+      self.gdb_commands = self.generate_cmd_script()
+
       #cmd = '/bin/bash -c "/usr/bin/gdb -q --batch --command=%s --args %s" 2>/dev/null > %s'
       #cmd = '/bin/bash -c "/usr/bin/gdb -q --batch --command=%s --args %s" > %s'
       #cmd %= (self.gdb_commands, self.program, logfile)
-      import signal
-      signal.signal(signal.SIGTTOU, signal.SIG_IGN)
       cmd = "/usr/bin/gdb -q --batch --command=%s --args %s"
       #print(self.program)
       #print(" ".join(self.args))
@@ -337,7 +362,6 @@ quit
       cmd_obj = TimeoutCommand(cmd)
       cmd_obj.run(self.timeout, get_output=True)
       
-      #buf = open(logfile, "rb").readlines()
       target_output = cmd_obj.stdout
       #print(target_output)
       self.parse_dump(target_output.split("\n"))
@@ -375,8 +399,6 @@ quit
       return
     except KeyboardInterrupt:
       exit(-1)
-    #finally:
-    #  os.remove(logfile)
 
 #-----------------------------------------------------------------------
 def read_configuration(cfgfile, cfgsection):
@@ -388,7 +410,7 @@ def read_configuration(cfgfile, cfgsection):
     parser.read(cfgfile)
 
     gdb_conf = {}
-    gdb_conf["output_file"] = "/tmp/gdb-target-output.log"
+    gdb_conf["output_file"] = "/dev/null"
     gdb_conf["debug"] = False
 
     if cfgsection not in parser.sections():
