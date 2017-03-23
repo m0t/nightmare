@@ -285,20 +285,20 @@ set follow-fork-mode child
 source ../lib/interfaces/ignore-errors.py
 run %s >> %s 
 info proc cmdline
-echo @@@START-OF-CRASH
-echo @@@PROGRAM-COUNTER
+echo @@@START-OF-CRASH\\n
+echo @@@PROGRAM-COUNTER\\n
 ignore-errors x /i $pc
 echo
-echo @@@REGISTERS
+echo @@@REGISTERS\\n
 i r
-echo @@@START-OF-STACK-TRACE
+echo @@@START-OF-STACK-TRACE \\n
 back 128
-echo @@@END-OF-STACK-TRACE
-echo @@@START-OF-DISASSEMBLY-AT-PC
+echo @@@END-OF-STACK-TRACE\\n
+echo @@@START-OF-DISASSEMBLY-AT-PC\\n
 ignore-errors x /16i $pc-16
-echo 
-echo @@@END-OF-DISASSEMBLY-AT-PC
-echo @@@END-OF-CRASH
+echo \\n
+echo @@@END-OF-DISASSEMBLY-AT-PC\\n
+echo @@@END-OF-CRASH\\n
 quit
     '''
     gdb_commands %= (" ".join(self.args), self.conf["output_file"])
@@ -362,9 +362,9 @@ quit
       cmd_obj = TimeoutCommand(cmd)
       cmd_obj.run(self.timeout, get_output=True)
       
-      target_output = cmd_obj.stdout
-      #print(target_output)
-      self.parse_dump(target_output.split("\n"))
+      gdb_output = cmd_obj.stdout
+      #print(gdb_output)
+      self.parse_dump(gdb_output.split("\n"))
 
       if self.got_valid_signal():
         crash_data = CCrashData(self.pc, self.signal)
